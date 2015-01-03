@@ -1,4 +1,4 @@
-package ee.vincent.clearsky;
+package ee.vincent.clearsky.activity;
 
 import android.app.Activity;
 import android.app.Dialog;
@@ -7,38 +7,35 @@ import android.app.PendingIntent;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
-import android.location.Location;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.CameraUpdate;
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapFragment;
-import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.CameraPosition;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polyline;
-import com.google.android.gms.maps.model.PolylineOptions;
 
+import ee.vincent.clearsky.R;
 import ee.vincent.clearsky.service.LocationService;
 
-public class MapsActivity extends Activity implements OnMapReadyCallback,
+/**
+ * Created by jakob on 2.01.2015.
+ */
+public class MainActivity extends Activity implements
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
-    private static final String TAG = "MapsActivity";
+    private static final String TAG = "MainActivity";
 
+    // determine if tracking is running
+    private boolean isTracking = false;
+
+    // Google API client to register location callbacks
     private GoogleApiClient googleApiClient;
-    private GoogleMap map;
-
     // Request code to use when launching the resolution activity
     private static final int REQUEST_RESOLVE_ERROR = 1001;
     // Unique tag for the error dialog fragment
@@ -52,20 +49,12 @@ public class MapsActivity extends Activity implements OnMapReadyCallback,
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_maps);
+        setContentView(R.layout.activity_main);
 
-        resolvingError = savedInstanceState != null
-                && savedInstanceState.getBoolean(STATE_RESOLVING_ERROR, false);
+        initUI();
 
         // setup location API
         buildGoogleApiClient();
-
-        // init map
-        MapFragment mapFragment = (MapFragment) getFragmentManager()
-                .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
-
-
     }
 
     @Override
@@ -104,49 +93,91 @@ public class MapsActivity extends Activity implements OnMapReadyCallback,
     }
 
 
+    private void initUI() {
 
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        this.map = googleMap;
+        Button startNewTrackerBtn = (Button)findViewById(R.id.btn_start_new_tracker);
+        Button closeAppBtn = (Button)findViewById(R.id.btn_close_app);
 
-        initRoute();
-    }
+        startNewTrackerBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onStartNewTrackerBtnClick();
+            }
+        });
 
-    private void initRoute() {
-
-        // Instantiates a new Polyline object and adds points to define a rectangle
-        PolylineOptions rectOptions = new PolylineOptions()
-                .add(new LatLng(37.35, -122.0))
-                .add(new LatLng(37.45, -122.0))  // North of the previous point, but at the same longitude
-                .add(new LatLng(37.45, -122.2))  // Same latitude, and 30km to the west
-                .add(new LatLng(37.35, -122.2))  // Same longitude, and 16km to the south
-                .add(new LatLng(37.35, -122.0)) // Closes the polyline.
-                .color(getResources().getColor(android.R.color.holo_red_light));
-
-        // Get back the mutable Polyline
-        Polyline polyline = map.addPolyline(rectOptions);
-
-        Log.e(TAG, "drawing rectangle");
+        closeAppBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onCloseAppBtnClick();
+            }
+        });
 
     }
 
-    private void startLocationUpdates() {
+    private void onStartNewTrackerBtnClick() {
+
+        if ( googleApiClient.isConnected() ) {
+            startTracking();
+        } else {
+            Log.e(TAG, "Cannot start new tracker, googleApiClient not connected!");
+            if ( !googleApiClient.isConnecting() )
+                googleApiClient.connect();
+        }
+
+    }
+
+    private void onCloseAppBtnClick() {
+
+        // stop location updates
+        if ( googleApiClient.isConnected() ) {
+            stopTracking();
+        } else {
+            Log.e(TAG, "Cannot close app, googleApiClient not connected!");
+            if ( !googleApiClient.isConnecting() )
+                googleApiClient.connect();
+        }
+
+    }
+
+    private void startTracking() {
 
         LocationRequest locationRequest = new LocationRequest();
         locationRequest.setInterval(5000);
         locationRequest.setFastestInterval(5000);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
+        // location updates are sent to LocationService with intent
+        // so that when activity is killed, updates are still coming
         Intent intent = new Intent(this, LocationService.class);
         PendingIntent pendingIntent = PendingIntent.getService(this, 1, intent, 0);
 
         LocationServices.FusedLocationApi.requestLocationUpdates(
                 googleApiClient, locationRequest, pendingIntent);
 
+        // goto Route view
+        intent = new Intent(this, RouteActivity.class);
+        startActivity(intent);
+
     }
 
-    //TODO draw received location on map
+    private void stopTracking() {
 
+        Intent intent = new Intent(this, LocationService.class);
+        PendingIntent pendingIntent = PendingIntent.getService(this, 1, intent, 0);
+
+        LocationServices.FusedLocationApi
+                .removeLocationUpdates(googleApiClient, pendingIntent)
+                .setResultCallback(new ResultCallback<Status>() {
+                    @Override
+                    public void onResult(Status status) {
+                        Log.e(TAG, "LocationUpdates canceled! " + status.toString() + " status message: " + status.getStatusMessage());
+
+                        // stop the service
+                        Intent intent = new Intent(MainActivity.this, LocationService.class);
+                        stopService(intent);
+                    }
+                });
+    }
 
 
     // Gogole API stuff
@@ -161,39 +192,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback,
 
     @Override
     public void onConnected(Bundle bundle) {
-
-        Location mLastLocation = LocationServices.FusedLocationApi
-                .getLastLocation(googleApiClient);
-
-        startLocationUpdates();
-
-        if (mLastLocation != null) {
-
-            if ( map != null ) {
-
-                LatLng latLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-
-                // add marker
-                Marker melbourne = map.addMarker(new MarkerOptions()
-                        .position(latLng)
-                        .icon(BitmapDescriptorFactory.defaultMarker()));
-
-                // goto location
-                CameraPosition.Builder positionBuilder = new CameraPosition.Builder();
-                positionBuilder.target(latLng);
-                positionBuilder.zoom(10);
-                CameraUpdate cameraUpdate = CameraUpdateFactory.newCameraPosition(positionBuilder.build());
-                map.moveCamera(cameraUpdate);
-
-                Log.e(TAG, "adding my location marker");
-
-            } else {
-                Log.e(TAG, "onConnected: map null");
-            }
-
-        } else {
-            Log.e(TAG, "onConnected: lastLocation null");
-        }
+        Log.e(TAG, "GoogleApiClient connected!");
 
     }
 
@@ -252,7 +251,8 @@ public class MapsActivity extends Activity implements OnMapReadyCallback,
 
         @Override
         public void onDismiss(DialogInterface dialog) {
-            ((MapsActivity)getActivity()).onDialogDismissed();
+            ((RouteActivity)getActivity()).onDialogDismissed();
         }
     }
+
 }
