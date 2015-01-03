@@ -10,4 +10,10 @@
     <string name="btn_star_new_tracker">Loo uus marsruut</string>
     <string name="btn_close_app">Sulge</string>
 
+    <string name="dlg_new_route_title">Uus marsruut</string>
+    <string name="dlg_new_route_name">nimi</string>
+    <string name="dlg_new_route_ok">OK</string>
+    <string name="dlg_new_route_cancel">katkesta</string>
+
+    <string name="toast_insert_name">Palun sisesta nimi</string>
 </resources>

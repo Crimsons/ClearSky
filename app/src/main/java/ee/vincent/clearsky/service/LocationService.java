@@ -11,6 +11,7 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.google.android.gms.location.FusedLocationProviderApi;
@@ -18,6 +19,8 @@ import com.google.android.gms.location.FusedLocationProviderApi;
 import ee.vincent.clearsky.Constants;
 import ee.vincent.clearsky.R;
 import ee.vincent.clearsky.activity.MainActivity;
+import ee.vincent.clearsky.database.Datasource;
+import ee.vincent.clearsky.model.Point;
 
 /**
  * Created by jakob on 2.01.2015.
@@ -28,8 +31,12 @@ public class LocationService extends Service {
     private static final String TAG = "LocationService";
     private static final String KEY_LOCATION = "location_parcelable";
 
-    public static boolean isRunning = false;
+    private static boolean running = false;
+    private static long routeId;
+
     private ServiceHandler mServiceHandler;
+    private Datasource datasource;
+
 
     // Handler that receives messages from the thread
     private final class ServiceHandler extends Handler {
@@ -45,12 +52,24 @@ public class LocationService extends Service {
 
             if ( location != null ) {
 
-                // TODO store location to db
-                // TODO send location with localbroadcast to map activity
                 Log.e(TAG, "got location: " + location.toString());
+
+                // store location in db
+                Point point = new Point();
+                point.setRouteId(routeId);
+                point.setTime(location.getTime());
+                point.setLatitude(location.getLatitude());
+                point.setLongitude(location.getLongitude());
+                point.setAltitude(location.getAltitude());
+                point.setSpeed(location.getSpeed());
+                datasource.insertPoint(point);
+
+                // send location with localbroadcast to listening activities
+                Intent localIntent = new Intent(Constants.Action.BROADCAST)
+                         .putExtra(Constants.Extra.LOCATION, location);
+                LocalBroadcastManager.getInstance(LocationService.this)
+                        .sendBroadcast(localIntent);
             }
-
-
 
         }
     }
@@ -85,7 +104,9 @@ public class LocationService extends Service {
 
         // TODO add backstack to notification intent
 
-        isRunning = true;
+        datasource = Datasource.getInstance(this);
+
+        running = true;
     }
 
     @Override
@@ -104,8 +125,6 @@ public class LocationService extends Service {
         return START_STICKY;
     }
 
-
-
     @Override
     public IBinder onBind(Intent intent) {
         // We don't provide binding, so return null
@@ -115,9 +134,24 @@ public class LocationService extends Service {
     @Override
     public void onDestroy() {
         Log.e(TAG, "onDestroy");
-        isRunning = false;
+        running = false;
         super.onDestroy();
     }
 
 
+    public static boolean isRunning() {
+        return running;
+    }
+
+    public static void setRunning(boolean running) {
+        LocationService.running = running;
+    }
+
+    public static long getRouteId() {
+        return routeId;
+    }
+
+    public static void setRouteId(long routeId) {
+        LocationService.routeId = routeId;
+    }
 }

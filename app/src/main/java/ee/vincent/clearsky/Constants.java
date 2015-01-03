@@ -6,11 +6,14 @@ package ee.vincent.clearsky;
 public class Constants {
 
 
-    /**
-     * keys
-     */
+    public class Action {
+        public static final String BROADCAST = "action_broadcast";
+    }
 
-
+    public class Extra {
+        public static final String LOCATION = "extra_location";
+        public static final String ROUTE_ID = "extra_route_id";
+    }
 
 
 

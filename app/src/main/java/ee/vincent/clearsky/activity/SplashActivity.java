@@ -30,7 +30,7 @@ public class SplashActivity extends Activity {
     private void continueToApp() {
 
         Intent intent;
-        if (LocationService.isRunning ) {
+        if (LocationService.isRunning() ) {
             intent = new Intent(this, RouteActivity.class);
         } else {
             intent = new Intent(this, MainActivity.class);

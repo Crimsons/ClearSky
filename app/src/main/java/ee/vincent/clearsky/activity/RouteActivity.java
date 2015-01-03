@@ -3,34 +3,35 @@ package ee.vincent.clearsky.activity;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.DialogFragment;
-import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.location.Location;
 import android.os.Bundle;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.CameraUpdate;
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
+import java.util.List;
+
+import ee.vincent.clearsky.Constants;
 import ee.vincent.clearsky.R;
-import ee.vincent.clearsky.service.LocationService;
 
 public class RouteActivity extends Activity implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
@@ -39,6 +40,8 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
 
     private GoogleApiClient googleApiClient;
     private GoogleMap map;
+    private Marker startMarker;
+    private Polyline route;
 
     // Request code to use when launching the resolution activity
     private static final int REQUEST_RESOLVE_ERROR = 1001;
@@ -58,14 +61,19 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
         resolvingError = savedInstanceState != null
                 && savedInstanceState.getBoolean(STATE_RESOLVING_ERROR, false);
 
-        // setup location API
         buildGoogleApiClient();
 
-        // init map
+        // initialize map
         MapFragment mapFragment = (MapFragment) getFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        // setup local broadcast receiver that
+        // receives location updates from service
+        IntentFilter intentFilter = new IntentFilter(Constants.Action.BROADCAST);
+        LocationReceiver locationReceiver = new LocationReceiver();
+        LocalBroadcastManager.getInstance(this)
+                .registerReceiver(locationReceiver, intentFilter);
 
     }
 
@@ -105,54 +113,64 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
     }
 
 
-
     @Override
     public void onMapReady(GoogleMap googleMap) {
         this.map = googleMap;
-
-        initRoute();
     }
 
-    private void initRoute() {
+    private void initRoute(LatLng location) {
 
-        // Instantiates a new Polyline object and adds points to define a rectangle
+        Log.e(TAG, "Initializing route!");
+
+        startMarker = map.addMarker(new MarkerOptions()
+                .position(location)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+
         PolylineOptions rectOptions = new PolylineOptions()
-                .add(new LatLng(37.35, -122.0))
-                .add(new LatLng(37.45, -122.0))  // North of the previous point, but at the same longitude
-                .add(new LatLng(37.45, -122.2))  // Same latitude, and 30km to the west
-                .add(new LatLng(37.35, -122.2))  // Same longitude, and 16km to the south
-                .add(new LatLng(37.35, -122.0)) // Closes the polyline.
                 .color(getResources().getColor(android.R.color.holo_red_light));
-
         // Get back the mutable Polyline
-        Polyline polyline = map.addPolyline(rectOptions);
-
-        Log.e(TAG, "drawing rectangle");
+        route = map.addPolyline(rectOptions);
 
     }
 
-    private void startLocationUpdates() {
+    private void addPointToMap(Location location) {
 
-        LocationRequest locationRequest = new LocationRequest();
-        locationRequest.setInterval(5000);
-        locationRequest.setFastestInterval(5000);
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        // dismiss point if map is not ready
+        if ( map == null )
+            return;
 
-        Intent intent = new Intent(this, LocationService.class);
-        PendingIntent pendingIntent = PendingIntent.getService(this, 1, intent, 0);
+        LatLng mapLocation = new LatLng(location.getLatitude(), location.getLongitude());
 
-        LocationServices.FusedLocationApi.requestLocationUpdates(
-                googleApiClient, locationRequest, pendingIntent);
+        if ( route == null ) {
+           initRoute(mapLocation);
+        }
 
+        Log.e(TAG, "Adding point!");
 
+        // add new point to polyline
+        List<LatLng> points = route.getPoints();
+        points.add(mapLocation);
+        route.setPoints(points);
 
     }
 
-    //TODO draw received location on map
+
+    // Broadcast receiver for receiving location from service
+    private class LocationReceiver extends BroadcastReceiver {
+        // Prevents instantiation
+        private LocationReceiver() {}
+
+        public void onReceive(Context context, Intent intent) {
+
+            Location location = intent.getParcelableExtra(Constants.Extra.LOCATION);
+            addPointToMap(location);
+
+        }
+
+    }
 
 
-
-    // Gogole API stuff
+    // Google API stuff
     protected synchronized void buildGoogleApiClient() {
 
         googleApiClient = new GoogleApiClient.Builder(this)
@@ -165,10 +183,8 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
     @Override
     public void onConnected(Bundle bundle) {
 
-        Location mLastLocation = LocationServices.FusedLocationApi
+        /*Location mLastLocation = LocationServices.FusedLocationApi
                 .getLastLocation(googleApiClient);
-
-        startLocationUpdates();
 
         if (mLastLocation != null) {
 
@@ -196,7 +212,7 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
 
         } else {
             Log.e(TAG, "onConnected: lastLocation null");
-        }
+        }*/
 
     }
 

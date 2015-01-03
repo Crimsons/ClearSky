@@ -8,9 +8,11 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -21,13 +23,18 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
 import ee.vincent.clearsky.R;
+import ee.vincent.clearsky.database.Datasource;
+import ee.vincent.clearsky.dialog.NewRouteDialog;
+import ee.vincent.clearsky.model.Route;
 import ee.vincent.clearsky.service.LocationService;
 
 /**
  * Created by jakob on 2.01.2015.
  */
 public class MainActivity extends Activity implements
-        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
+        GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener,
+        NewRouteDialog.NewRouteDialogListener {
 
     private static final String TAG = "MainActivity";
 
@@ -141,23 +148,44 @@ public class MainActivity extends Activity implements
 
     private void startTracking() {
 
+        DialogFragment dialog = new NewRouteDialog();
+        dialog.show(getFragmentManager(), NewRouteDialog.TAG);
+    }
+
+    @Override
+    public void NewRouteDialogSuccess(String routeName) {
+
+        if ( TextUtils.isEmpty(routeName) ) {
+            DialogFragment dialog = new NewRouteDialog();
+            dialog.show(getFragmentManager(), NewRouteDialog.TAG);
+            Toast.makeText(this, getString(R.string.toast_insert_name),
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // create new route
+        Route route = new Route();
+        route.setName(routeName);
+        route.setCreated(System.currentTimeMillis());
+        long routeId = Datasource.getInstance(this).insertRoute(route);
+
+        // initialize LocationService with routeId
+        LocationService.setRouteId(routeId);
+
+        // start location updates that are delivered
+        // to LocationService via PendingIntent
         LocationRequest locationRequest = new LocationRequest();
         locationRequest.setInterval(5000);
         locationRequest.setFastestInterval(5000);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-
-        // location updates are sent to LocationService with intent
-        // so that when activity is killed, updates are still coming
         Intent intent = new Intent(this, LocationService.class);
         PendingIntent pendingIntent = PendingIntent.getService(this, 1, intent, 0);
-
         LocationServices.FusedLocationApi.requestLocationUpdates(
                 googleApiClient, locationRequest, pendingIntent);
 
         // goto Route view
         intent = new Intent(this, RouteActivity.class);
         startActivity(intent);
-
     }
 
     private void stopTracking() {
