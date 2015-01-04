@@ -4,6 +4,8 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
@@ -91,13 +93,14 @@ public class LocationService extends Service {
         mServiceHandler = new ServiceHandler(thread.getLooper());
 
         // set as foreground service
+        Bitmap largeIcon = BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher);
         Intent intent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
         Notification notification = new Notification.Builder(this)
                 .setContentTitle(getString(R.string.notification_title))
                 .setContentText(getString(R.string.notification_text))
-                .setSmallIcon(R.drawable.ic_launcher)
-                //.setLargeIcon(aBitmap)
+                .setSmallIcon(R.drawable.ic_stat_notif_pedestrian)
+                .setLargeIcon(largeIcon)
                 .setContentIntent(pendingIntent)
                 .getNotification();
         startForeground(Constants.LOC_SERVICE_NOTIF_ID, notification);
