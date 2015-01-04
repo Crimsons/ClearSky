@@ -13,15 +13,19 @@ import android.location.Location;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.view.View;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -30,6 +34,7 @@ import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.util.List;
 
+import ee.vincent.clearsky.Conf;
 import ee.vincent.clearsky.Constants;
 import ee.vincent.clearsky.R;
 
@@ -56,7 +61,7 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_maps);
+        setContentView(R.layout.activity_route);
 
         resolvingError = savedInstanceState != null
                 && savedInstanceState.getBoolean(STATE_RESOLVING_ERROR, false);
@@ -118,18 +123,38 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
         this.map = googleMap;
     }
 
-    private void initRoute(LatLng location) {
+    private void initRouteWithStartPoint(LatLng location) {
 
         Log.e(TAG, "Initializing route!");
 
+        // start marker
         startMarker = map.addMarker(new MarkerOptions()
                 .position(location)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+                .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint_start)));
 
+        // create polyline
         PolylineOptions rectOptions = new PolylineOptions()
                 .color(getResources().getColor(android.R.color.holo_red_light));
-        // Get back the mutable Polyline
         route = map.addPolyline(rectOptions);
+
+        // move camera to start point
+        CameraPosition cameraPosition = CameraPosition.builder()
+                .zoom(Conf.INITIAL_ZOOM_LEVEL)
+                .target(location)
+                .build();
+        CameraUpdate cameraUpdate = CameraUpdateFactory
+                .newCameraPosition(cameraPosition);
+        map.animateCamera(cameraUpdate, new GoogleMap.CancelableCallback() {
+            @Override
+            public void onFinish() {
+                findViewById(R.id.waiting_for_fix).setVisibility(View.GONE);
+            }
+
+            @Override
+            public void onCancel() {
+
+            }
+        });
 
     }
 
@@ -142,15 +167,26 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
         LatLng mapLocation = new LatLng(location.getLatitude(), location.getLongitude());
 
         if ( route == null ) {
-           initRoute(mapLocation);
+           initRouteWithStartPoint(mapLocation);
+        } else {
+
+            Log.e(TAG, "Adding point!");
+
+            // add new point to polyline
+            List<LatLng> points = route.getPoints();
+            points.add(mapLocation);
+            route.setPoints(points);
+
+            // add point marker
+            startMarker = map.addMarker(new MarkerOptions()
+                    .position(mapLocation)
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint)));
+
+            // move camera to added point
+            CameraUpdate cameraUpdate = CameraUpdateFactory
+                    .newLatLng(mapLocation);
+            map.animateCamera(cameraUpdate);
         }
-
-        Log.e(TAG, "Adding point!");
-
-        // add new point to polyline
-        List<LatLng> points = route.getPoints();
-        points.add(mapLocation);
-        route.setPoints(points);
 
     }
 

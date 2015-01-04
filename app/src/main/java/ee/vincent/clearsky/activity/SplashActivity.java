@@ -37,6 +37,10 @@ public class SplashActivity extends Activity {
         }
 
         startActivity(intent);
+
+        // we do not want to come back to splashactivity
+        // when user presses back key in mainactivity
+        finish();
     }
 
 

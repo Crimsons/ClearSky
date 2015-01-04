@@ -13,6 +13,7 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.support.v4.app.TaskStackBuilder;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
@@ -20,7 +21,7 @@ import com.google.android.gms.location.FusedLocationProviderApi;
 
 import ee.vincent.clearsky.Constants;
 import ee.vincent.clearsky.R;
-import ee.vincent.clearsky.activity.MainActivity;
+import ee.vincent.clearsky.activity.RouteActivity;
 import ee.vincent.clearsky.database.Datasource;
 import ee.vincent.clearsky.model.Point;
 
@@ -93,19 +94,22 @@ public class LocationService extends Service {
         mServiceHandler = new ServiceHandler(thread.getLooper());
 
         // set as foreground service
+        Intent resultIntent = new Intent(this, RouteActivity.class);
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+        stackBuilder.addParentStack(RouteActivity.class);
+        stackBuilder.addNextIntent(resultIntent);
+        PendingIntent pendingIntent =
+                stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+
         Bitmap largeIcon = BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher);
-        Intent intent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
         Notification notification = new Notification.Builder(this)
                 .setContentTitle(getString(R.string.notification_title))
                 .setContentText(getString(R.string.notification_text))
                 .setSmallIcon(R.drawable.ic_stat_notif_pedestrian)
                 .setLargeIcon(largeIcon)
                 .setContentIntent(pendingIntent)
-                .getNotification();
+                .build();
         startForeground(Constants.LOC_SERVICE_NOTIF_ID, notification);
-
-        // TODO add backstack to notification intent
 
         datasource = Datasource.getInstance(this);
 
