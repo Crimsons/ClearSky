@@ -1,6 +1,5 @@
 package ee.vincent.clearsky.activity;
 
-import android.app.Activity;
 import android.app.Dialog;
 import android.app.DialogFragment;
 import android.app.PendingIntent;
@@ -8,6 +7,10 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.os.Bundle;
+import android.support.v7.app.ActionBarActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -22,7 +25,12 @@ import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
+import java.util.List;
+
+import ee.vincent.clearsky.Conf;
 import ee.vincent.clearsky.R;
+import ee.vincent.clearsky.adapter.ListItemDecoration;
+import ee.vincent.clearsky.adapter.RoutesListAdapter;
 import ee.vincent.clearsky.database.Datasource;
 import ee.vincent.clearsky.dialog.NewRouteDialog;
 import ee.vincent.clearsky.model.Route;
@@ -31,15 +39,17 @@ import ee.vincent.clearsky.service.LocationService;
 /**
  * Created by jakob on 2.01.2015.
  */
-public class MainActivity extends Activity implements
+public class MainActivity extends ActionBarActivity implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         NewRouteDialog.NewRouteDialogListener {
 
     private static final String TAG = "MainActivity";
 
-    // determine if tracking is running
-    private boolean isTracking = false;
+    // UI refs
+    private RecyclerView recyclerView;
+    private LinearLayoutManager mLayoutManager;
+    private RoutesListAdapter mAdapter;
 
     // Google API client to register location callbacks
     private GoogleApiClient googleApiClient;
@@ -57,6 +67,9 @@ public class MainActivity extends Activity implements
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Toolbar toolbar = (Toolbar) findViewById(R.id.main_toolbar);
+        setSupportActionBar(toolbar);
 
         initUI();
 
@@ -102,6 +115,7 @@ public class MainActivity extends Activity implements
 
     private void initUI() {
 
+        recyclerView = (RecyclerView) findViewById(R.id.routes_list);
         Button startNewTrackerBtn = (Button)findViewById(R.id.btn_start_new_tracker);
         Button closeAppBtn = (Button)findViewById(R.id.btn_close_app);
 
@@ -118,6 +132,25 @@ public class MainActivity extends Activity implements
                 onCloseAppBtnClick();
             }
         });
+
+
+        // initialize routes listview
+        List<Route> routes = Datasource.getInstance(this).getRoutes();
+
+        // use this setting to improve performance if you know that changes
+        // in content do not change the layout size of the RecyclerView
+        recyclerView.setHasFixedSize(true);
+
+        // use a linear layout manager
+        mLayoutManager = new LinearLayoutManager(this);
+        recyclerView.setLayoutManager(mLayoutManager);
+
+        recyclerView.addItemDecoration(new ListItemDecoration(
+                getResources().getDrawable(R.drawable.abc_list_divider_mtrl_alpha)));
+
+        // specify an adapter (see also next example)
+        mAdapter = new RoutesListAdapter(routes);
+        recyclerView.setAdapter(mAdapter);
 
     }
 
@@ -138,6 +171,7 @@ public class MainActivity extends Activity implements
         // stop location updates
         if ( googleApiClient.isConnected() ) {
             stopTracking();
+            finish();
         } else {
             Log.e(TAG, "Cannot close app, googleApiClient not connected!");
             if ( !googleApiClient.isConnecting() )
@@ -175,8 +209,8 @@ public class MainActivity extends Activity implements
         // start location updates that are delivered
         // to LocationService via PendingIntent
         LocationRequest locationRequest = new LocationRequest();
-        locationRequest.setInterval(5000);
-        locationRequest.setFastestInterval(5000);
+        locationRequest.setInterval(Conf.LOCATION_UPDATES_INTERVAL);
+        locationRequest.setFastestInterval(Conf.LOCATION_UPDATES_INTERVAL);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         Intent intent = new Intent(this, LocationService.class);
         PendingIntent pendingIntent = PendingIntent.getService(this, 1, intent, 0);

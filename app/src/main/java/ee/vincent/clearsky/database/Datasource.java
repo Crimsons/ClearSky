@@ -2,8 +2,12 @@ package ee.vincent.clearsky.database;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import ee.vincent.clearsky.model.Point;
 import ee.vincent.clearsky.model.Route;
@@ -62,6 +66,33 @@ public class Datasource {
         dbHelper.close();
 
         return rowId;
+    }
+
+
+    // query methods
+    public List<Route> getRoutes() {
+        List<Route> routes = new ArrayList<>();
+
+        String sql =
+                "SELECT " +
+                    "r.* " +
+                "FROM routes AS r " +
+                "ORDER BY r.created DESC" +
+                "";
+
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = db.rawQuery(sql, null);
+
+        cursor.moveToFirst();
+        while (!cursor.isAfterLast()) {
+            routes.add(new Route(cursor));
+            cursor.moveToNext();
+        }
+        cursor.close();
+
+        dbHelper.close();
+
+        return routes;
     }
 
 

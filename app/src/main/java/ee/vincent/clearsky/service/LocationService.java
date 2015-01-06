@@ -108,7 +108,7 @@ public class LocationService extends Service {
                 .setSmallIcon(R.drawable.ic_stat_notif_pedestrian)
                 .setLargeIcon(largeIcon)
                 .setContentIntent(pendingIntent)
-                .build();
+                .getNotification();
         startForeground(Constants.LOC_SERVICE_NOTIF_ID, notification);
 
         datasource = Datasource.getInstance(this);
