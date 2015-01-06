@@ -6,7 +6,7 @@ package ee.vincent.clearsky;
 public class Conf {
 
 
-    public static final int SPLASH_DURATION = 2000;
+    public static final int SPLASH_DURATION = 1500;
 
     public static final int LOCATION_UPDATES_INTERVAL = 10000;
 

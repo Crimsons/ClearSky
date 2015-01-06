@@ -28,13 +28,14 @@ import com.google.android.gms.location.LocationServices;
 import java.util.List;
 
 import ee.vincent.clearsky.Conf;
+import ee.vincent.clearsky.Constants;
 import ee.vincent.clearsky.R;
-import ee.vincent.clearsky.adapter.ListItemDecoration;
 import ee.vincent.clearsky.adapter.RoutesListAdapter;
 import ee.vincent.clearsky.database.Datasource;
 import ee.vincent.clearsky.dialog.NewRouteDialog;
 import ee.vincent.clearsky.model.Route;
 import ee.vincent.clearsky.service.LocationService;
+import ee.vincent.clearsky.utils.ListDividerDecoration;
 
 /**
  * Created by jakob on 2.01.2015.
@@ -145,11 +146,19 @@ public class MainActivity extends ActionBarActivity implements
         mLayoutManager = new LinearLayoutManager(this);
         recyclerView.setLayoutManager(mLayoutManager);
 
-        recyclerView.addItemDecoration(new ListItemDecoration(
-                getResources().getDrawable(R.drawable.abc_list_divider_mtrl_alpha)));
+        // add listitem dividers
+        recyclerView.addItemDecoration(new ListDividerDecoration(this));
 
         // specify an adapter (see also next example)
         mAdapter = new RoutesListAdapter(routes);
+        mAdapter.setOnItemCLickListener(new RoutesListAdapter.OnListItemClickListener() {
+            @Override
+            public void onListItemClick(int position) {
+                Intent intent = new Intent(MainActivity.this, RouteActivity.class);
+                intent.putExtra(Constants.Extra.ROUTE_ID, mAdapter.getItem(position).getId());
+                startActivity(intent);
+            }
+        });
         recyclerView.setAdapter(mAdapter);
 
     }

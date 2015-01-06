@@ -154,6 +154,7 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
             public void onCancel() {
 
             }
+
         });
 
     }
