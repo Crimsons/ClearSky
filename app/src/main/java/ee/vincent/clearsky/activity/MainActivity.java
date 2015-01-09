@@ -13,8 +13,10 @@ import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -24,6 +26,7 @@ import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.melnykov.fab.FloatingActionButton;
 
 import java.util.List;
 
@@ -113,24 +116,39 @@ public class MainActivity extends ActionBarActivity implements
         outState.putBoolean(STATE_RESOLVING_ERROR, resolvingError);
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.activity_main, menu);
+        return true;
+
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        switch (item.getItemId() ) {
+            case R.id.item_exit:
+                stopTrackingAndExitApp();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+
+    }
+
 
     private void initUI() {
 
         recyclerView = (RecyclerView) findViewById(R.id.routes_list);
-        Button startNewTrackerBtn = (Button)findViewById(R.id.btn_start_new_tracker);
-        Button closeAppBtn = (Button)findViewById(R.id.btn_close_app);
+        FloatingActionButton startNewTrackerBtn =
+                (FloatingActionButton)findViewById(R.id.btn_start_new_tracker);
 
         startNewTrackerBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 onStartNewTrackerBtnClick();
-            }
-        });
-
-        closeAppBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                onCloseAppBtnClick();
             }
         });
 
@@ -175,7 +193,7 @@ public class MainActivity extends ActionBarActivity implements
 
     }
 
-    private void onCloseAppBtnClick() {
+    private void stopTrackingAndExitApp() {
 
         // stop location updates
         if ( googleApiClient.isConnected() ) {
