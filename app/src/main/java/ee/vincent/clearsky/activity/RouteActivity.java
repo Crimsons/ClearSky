@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -27,6 +28,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
@@ -37,6 +39,9 @@ import java.util.List;
 import ee.vincent.clearsky.Conf;
 import ee.vincent.clearsky.Constants;
 import ee.vincent.clearsky.R;
+import ee.vincent.clearsky.database.Datasource;
+import ee.vincent.clearsky.model.Point;
+import ee.vincent.clearsky.model.Route;
 
 public class RouteActivity extends Activity implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
@@ -118,9 +123,77 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
     }
 
 
+    /**
+     * Load route and objects on map.
+     * Called when map is ready.
+     */
+    private void initUI() {
+
+        long routeId = getIntent().getLongExtra(Constants.Extra.ROUTE_ID, -1);
+        if ( routeId > -1 )
+            new DataLoaderTask().execute(routeId);
+    }
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         this.map = googleMap;
+        initUI();
+
+
+    }
+
+    private void addRouteToMap(Route route) {
+
+        List<Point> points = route.getPoints();
+        if (points.size() > 0) {
+
+            // bounds used to fit route to the visible map area
+            LatLngBounds.Builder boundsBuilder = new LatLngBounds.Builder();
+
+            // create route
+            PolylineOptions rectOptions = new PolylineOptions()
+                    .color(getResources().getColor(android.R.color.holo_red_light));
+
+            for (int i = 0; i < points.size(); i++) {
+                Point point = points.get(i);
+                LatLng location = new LatLng(point.getLatitude(), point.getLongitude());
+
+                boundsBuilder.include(location);
+
+                // add point to route
+                rectOptions.add(location);
+
+                // add marker to map
+                int markerDrawable;
+                if ( i == 0 )
+                    markerDrawable = R.drawable.ic_map_waypoint_start;
+                else
+                    markerDrawable = R.drawable.ic_map_waypoint;
+                map.addMarker(new MarkerOptions()
+                        .position(location)
+                        .icon(BitmapDescriptorFactory.fromResource(markerDrawable)));
+            }
+
+            // add route to map
+            map.addPolyline(rectOptions);
+
+            // move camera to fit route
+            CameraUpdate cameraUpdate = CameraUpdateFactory
+                    .newLatLngBounds(boundsBuilder.build(), 32);
+            map.animateCamera(cameraUpdate, new GoogleMap.CancelableCallback() {
+                @Override
+                public void onFinish() {
+                }
+
+                @Override
+                public void onCancel() {
+
+                }
+
+            });
+
+        }
+
     }
 
     private void initRouteWithStartPoint(LatLng location) {
@@ -159,40 +232,63 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
 
     }
 
-    private void addPointToMap(Location location) {
+    private void addPointToMap(LatLng point) {
 
         // dismiss point if map is not ready
         if ( map == null )
             return;
 
-        LatLng mapLocation = new LatLng(location.getLatitude(), location.getLongitude());
-
         if ( route == null ) {
-           initRouteWithStartPoint(mapLocation);
+           initRouteWithStartPoint(point);
         } else {
 
             Log.e(TAG, "Adding point!");
 
             // add new point to polyline
             List<LatLng> points = route.getPoints();
-            points.add(mapLocation);
+            points.add(point);
             route.setPoints(points);
 
             // add point marker
             startMarker = map.addMarker(new MarkerOptions()
-                    .position(mapLocation)
+                    .position(point)
                     .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint)));
 
             // move camera to added point
             CameraUpdate cameraUpdate = CameraUpdateFactory
-                    .newLatLng(mapLocation);
+                    .newLatLng(point);
             map.animateCamera(cameraUpdate);
         }
 
     }
 
 
-    // Broadcast receiver for receiving location from service
+    private class DataLoaderTask extends AsyncTask<Long, Void, Route> {
+
+        @Override
+        protected Route doInBackground(Long... params) {
+
+            long routeId = params[0];
+            Route route = Datasource.getInstance(RouteActivity.this)
+                    .getRoute(routeId);
+            List<Point> points = Datasource.getInstance(RouteActivity.this)
+                    .getRoutePoints(route.getId());
+            route.setPoints(points);
+
+            return route;
+        }
+
+        @Override
+        protected void onPostExecute(Route route) {
+
+            if ( route != null ) {
+                addRouteToMap(route);
+            }
+
+        }
+    }
+
+    // Broadcast receiver for receiving location updates
     private class LocationReceiver extends BroadcastReceiver {
         // Prevents instantiation
         private LocationReceiver() {}
@@ -200,7 +296,7 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
         public void onReceive(Context context, Intent intent) {
 
             Location location = intent.getParcelableExtra(Constants.Extra.LOCATION);
-            addPointToMap(location);
+            addPointToMap(new LatLng(location.getLatitude(), location.getLongitude()));
 
         }
 

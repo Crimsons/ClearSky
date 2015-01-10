@@ -95,5 +95,57 @@ public class Datasource {
         return routes;
     }
 
+    public Route getRoute(long routeId) {
+
+        Route route = null;
+
+        String sql =
+                "SELECT " +
+                    "r.* " +
+                "FROM routes AS r " +
+                "WHERE r.id = ? " +
+                "";
+
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = db.rawQuery(sql, new String[]{Long.toString(routeId)});
+
+        if ( cursor.getCount() > 0 ) {
+            cursor.moveToFirst();
+            route = new Route(cursor);
+        }
+
+        cursor.close();
+        dbHelper.close();
+
+        return route;
+    }
+
+    public List<Point> getRoutePoints(long routeId) {
+
+        List<Point> points = new ArrayList<>();
+
+        String sql =
+                "SELECT " +
+                    "p.* " +
+                "FROM points AS p " +
+                "WHERE p.route_id = ? " +
+                "ORDER BY p.time ASC" +
+                "";
+
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = db.rawQuery(sql, new String[]{Long.toString(routeId)});
+
+        cursor.moveToFirst();
+        while (!cursor.isAfterLast()) {
+            points.add(new Point(cursor));
+            cursor.moveToNext();
+        }
+        cursor.close();
+
+        dbHelper.close();
+
+        return points;
+    }
+
 
 }

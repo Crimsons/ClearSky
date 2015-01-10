@@ -2,6 +2,9 @@ package ee.vincent.clearsky.model;
 
 import android.database.Cursor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import ee.vincent.clearsky.database.Contract;
 
 /**
@@ -12,6 +15,7 @@ public class Route {
     private long id;
     private String name;
     private long created;
+    private List<Point> points;
 
 
     public Route() {
@@ -22,6 +26,8 @@ public class Route {
         id = cursor.getLong(cursor.getColumnIndexOrThrow(Contract.Routes.COLUMN_ID));
         name = cursor.getString(cursor.getColumnIndexOrThrow(Contract.Routes.COLUMN_NAME));
         created = cursor.getLong(cursor.getColumnIndexOrThrow(Contract.Routes.COLUMN_CREATED));
+
+        points = new ArrayList<>();
     }
 
     public long getId() {
@@ -46,6 +52,14 @@ public class Route {
 
     public void setCreated(long created) {
         this.created = created;
+    }
+
+    public List<Point> getPoints() {
+        return points;
+    }
+
+    public void setPoints(List<Point> points) {
+        this.points = points;
     }
 
     @Override

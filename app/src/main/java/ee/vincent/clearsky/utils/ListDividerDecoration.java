@@ -48,9 +48,8 @@ public class ListDividerDecoration extends RecyclerView.ItemDecoration {
 
         for (int i=1; i < childCount; i++) {
             final View child = parent.getChildAt(i);
-            final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams) child.getLayoutParams();
             final int size = mDivider.getIntrinsicHeight();
-            final int top = child.getTop() - params.topMargin;
+            final int top = child.getTop() - size;
             final int bottom = top + size;
             mDivider.setBounds(left, top, right, bottom);
             mDivider.draw(c);
