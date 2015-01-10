@@ -14,6 +14,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.View;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -152,8 +153,11 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
 
             // create route
             PolylineOptions rectOptions = new PolylineOptions()
-                    .color(getResources().getColor(android.R.color.holo_red_light));
+                    .color(getResources().getColor(R.color.route_polyline));
 
+            MarkerOptions markerOptions = new MarkerOptions()
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint_small))
+                    .anchor(.5f, .5f);
             for (int i = 0; i < points.size(); i++) {
                 Point point = points.get(i);
                 LatLng location = new LatLng(point.getLatitude(), point.getLongitude());
@@ -164,22 +168,31 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
                 rectOptions.add(location);
 
                 // add marker to map
-                int markerDrawable;
-                if ( i == 0 )
-                    markerDrawable = R.drawable.ic_map_waypoint_start;
-                else
-                    markerDrawable = R.drawable.ic_map_waypoint;
-                map.addMarker(new MarkerOptions()
-                        .position(location)
-                        .icon(BitmapDescriptorFactory.fromResource(markerDrawable)));
+                markerOptions.position(location);
+                map.addMarker(markerOptions);
             }
+
+            // add start & finish markers
+            Point startPoint = points.get(0);
+            map.addMarker(markerOptions
+                    .position(new LatLng(startPoint.getLatitude(), startPoint.getLongitude()))
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint_start_2))
+                    .anchor(.37f, 1f));
+
+            Point finishPoint = points.get(points.size()-1);
+            map.addMarker(markerOptions
+                    .position(new LatLng(finishPoint.getLatitude(), finishPoint.getLongitude()))
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint_finish))
+                    .anchor(.37f, 1f));
 
             // add route to map
             map.addPolyline(rectOptions);
 
             // move camera to fit route
+            float padding = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32,
+                    getResources().getDisplayMetrics());
             CameraUpdate cameraUpdate = CameraUpdateFactory
-                    .newLatLngBounds(boundsBuilder.build(), 32);
+                    .newLatLngBounds(boundsBuilder.build(), Math.round(padding));
             map.animateCamera(cameraUpdate, new GoogleMap.CancelableCallback() {
                 @Override
                 public void onFinish() {
@@ -287,6 +300,7 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
 
         }
     }
+
 
     // Broadcast receiver for receiving location updates
     private class LocationReceiver extends BroadcastReceiver {

@@ -8,4 +8,6 @@
     <color name="accent">#ff4081</color>
     <color name="accent_pressed">#f50057</color>
 
+    <color name="route_polyline">#009b50</color>
+
 </resources>
