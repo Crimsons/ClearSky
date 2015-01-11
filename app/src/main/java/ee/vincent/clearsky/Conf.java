@@ -12,6 +12,9 @@ public class Conf {
 
     public static final int INITIAL_ZOOM_LEVEL = 17;
 
+    // meters
+    public static final int MIN_DISTANCE_TO_FIX = 5;
+
 
 
 }

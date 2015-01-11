@@ -235,10 +235,10 @@ public class MainActivity extends ActionBarActivity implements
 
         // start location updates that are delivered
         // to LocationService via PendingIntent
-        LocationRequest locationRequest = new LocationRequest();
-        locationRequest.setInterval(Conf.LOCATION_UPDATES_INTERVAL);
-        locationRequest.setFastestInterval(Conf.LOCATION_UPDATES_INTERVAL);
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        LocationRequest locationRequest = new LocationRequest()
+                .setInterval(Conf.LOCATION_UPDATES_INTERVAL)
+                .setFastestInterval(Conf.LOCATION_UPDATES_INTERVAL)
+                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         Intent intent = new Intent(this, LocationService.class);
         PendingIntent pendingIntent = PendingIntent.getService(this, 1, intent, 0);
         LocationServices.FusedLocationApi.requestLocationUpdates(

@@ -13,7 +13,6 @@ import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 
@@ -30,7 +29,6 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
-import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
@@ -50,8 +48,8 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
     private static final String TAG = "RouteActivity";
 
     private GoogleApiClient googleApiClient;
+    private LocationReceiver locationReceiver;
     private GoogleMap map;
-    private Marker startMarker;
     private Polyline route;
 
     // Request code to use when launching the resolution activity
@@ -82,7 +80,7 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
         // setup local broadcast receiver that
         // receives location updates from service
         IntentFilter intentFilter = new IntentFilter(Constants.Action.BROADCAST);
-        LocationReceiver locationReceiver = new LocationReceiver();
+        locationReceiver = new LocationReceiver();
         LocalBroadcastManager.getInstance(this)
                 .registerReceiver(locationReceiver, intentFilter);
 
@@ -100,6 +98,15 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
     protected void onStop() {
         googleApiClient.disconnect();
         super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+
+        LocalBroadcastManager.getInstance(this)
+                .unregisterReceiver(locationReceiver);
+
+        super.onDestroy();
     }
 
     @Override
@@ -211,16 +218,22 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
 
     private void initRouteWithStartPoint(LatLng location) {
 
-        Log.e(TAG, "Initializing route!");
+        // add point marker
+        map.addMarker(new MarkerOptions()
+                .position(location)
+                .anchor(.5f, .5f)
+                .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint_small)));
 
         // start marker
-        startMarker = map.addMarker(new MarkerOptions()
+        map.addMarker(new MarkerOptions()
                 .position(location)
-                .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint_start)));
+                .anchor(.37f, 1f)
+                .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint_start_2)));
 
         // create polyline
         PolylineOptions rectOptions = new PolylineOptions()
-                .color(getResources().getColor(android.R.color.holo_red_light));
+                .color(getResources().getColor(R.color.route_polyline))
+                .add(location);
         route = map.addPolyline(rectOptions);
 
         // move camera to start point
@@ -255,17 +268,16 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
            initRouteWithStartPoint(point);
         } else {
 
-            Log.e(TAG, "Adding point!");
-
             // add new point to polyline
             List<LatLng> points = route.getPoints();
             points.add(point);
             route.setPoints(points);
 
             // add point marker
-            startMarker = map.addMarker(new MarkerOptions()
+            map.addMarker(new MarkerOptions()
                     .position(point)
-                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint)));
+                    .anchor(.5f, .5f)
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_map_waypoint_small)));
 
             // move camera to added point
             CameraUpdate cameraUpdate = CameraUpdateFactory
@@ -308,10 +320,8 @@ public class RouteActivity extends Activity implements OnMapReadyCallback,
         private LocationReceiver() {}
 
         public void onReceive(Context context, Intent intent) {
-
             Location location = intent.getParcelableExtra(Constants.Extra.LOCATION);
             addPointToMap(new LatLng(location.getLatitude(), location.getLongitude()));
-
         }
 
     }

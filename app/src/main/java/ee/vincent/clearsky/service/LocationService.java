@@ -19,6 +19,7 @@ import android.util.Log;
 
 import com.google.android.gms.location.FusedLocationProviderApi;
 
+import ee.vincent.clearsky.Conf;
 import ee.vincent.clearsky.Constants;
 import ee.vincent.clearsky.R;
 import ee.vincent.clearsky.activity.RouteActivity;
@@ -38,7 +39,7 @@ public class LocationService extends Service {
     private static long routeId;
 
     private ServiceHandler mServiceHandler;
-    private Datasource datasource;
+    private Location lastLocation;
 
 
     // Handler that receives messages from the thread
@@ -57,21 +58,30 @@ public class LocationService extends Service {
 
                 Log.e(TAG, "got location: " + location.toString());
 
-                // store location in db
-                Point point = new Point();
-                point.setRouteId(routeId);
-                point.setTime(location.getTime());
-                point.setLatitude(location.getLatitude());
-                point.setLongitude(location.getLongitude());
-                point.setAltitude(location.getAltitude());
-                point.setSpeed(location.getSpeed());
-                datasource.insertPoint(point);
+                if ( lastLocation == null
+                        || Math.round(lastLocation.distanceTo(location)) > Conf.MIN_DISTANCE_TO_FIX ) {
 
-                // send location with localbroadcast to listening activities
-                Intent localIntent = new Intent(Constants.Action.BROADCAST)
-                         .putExtra(Constants.Extra.LOCATION, location);
-                LocalBroadcastManager.getInstance(LocationService.this)
-                        .sendBroadcast(localIntent);
+                    // store location in db
+                    Point point = new Point();
+                    point.setRouteId(routeId);
+                    point.setTime(location.getTime());
+                    point.setLatitude(location.getLatitude());
+                    point.setLongitude(location.getLongitude());
+                    point.setAltitude(location.getAltitude());
+                    point.setSpeed(location.getSpeed());
+                    Datasource.getInstance(LocationService.this).insertPoint(point);
+
+                    // send location with localbroadcast to listening activities
+                    Intent localIntent = new Intent(Constants.Action.BROADCAST)
+                            .putExtra(Constants.Extra.LOCATION, location);
+                    LocalBroadcastManager.getInstance(LocationService.this)
+                            .sendBroadcast(localIntent);
+
+                    lastLocation = location;
+                } else {
+                    Log.e(TAG, "discarded location. too near!");
+                }
+
             }
 
         }
@@ -110,8 +120,6 @@ public class LocationService extends Service {
                 .setContentIntent(pendingIntent)
                 .getNotification();
         startForeground(Constants.LOC_SERVICE_NOTIF_ID, notification);
-
-        datasource = Datasource.getInstance(this);
 
         running = true;
     }
